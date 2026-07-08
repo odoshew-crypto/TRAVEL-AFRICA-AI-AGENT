@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TravelAfrica | Luxury AI Planner</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <div class="page-shell">
+        <header class="topbar">
+            <a class="brand" href="/">
+                <span class="brand-mark">✦</span>
+                <span class="brand-text">TravelAfrica</span>
+            </a>
+            <nav class="topbar-nav" aria-label="Primary navigation">
+                <a href="#planner">Planner</a>
+                <a href="#hotels">Hotels</a>
+                <a href="#insights">Insights</a>
+            </nav>
+            <div class="topbar-controls">
+                <label class="selector">
+                    <span>Currency</span>
+                    <select>
+                        <option>USD</option>
+                        <option>EUR</option>
+                        <option>KES</option>
+                    </select>
+                </label>
+                <label class="selector">
+                    <span>Language</span>
+                    <select>
+                        <option>EN</option>
+                        <option>FR</option>
+                        <option>SW</option>
+                    </select>
+                </label>
+                <button class="profile-pill" type="button" aria-label="User profile">
+                    <span>AL</span>
+                </button>
+            </div>
+        </header>
+
+        <section class="hero" id="planner">
+            <div class="hero-content">
+                <p class="eyebrow">Luxury AI travel planner</p>
+                <h1>Hey explorer, where are we going today?</h1>
+                <p class="hero-subtitle">Discover Kenya &amp; East Africa with AI-powered hotel recommendations and trip planning.</p>
+
+                <div class="chip-row" aria-label="Quick actions">
+                    <button class="chip" data-query="Explore Kenya hotels and safari stays">Explore Kenya</button>
+                    <button class="chip" data-query="Plan a luxurious safari getaway in Kenya and Tanzania">Plan a Safari</button>
+                    <button class="chip" data-query="Recommend beach escapes in Zanzibar and coastal Kenya">Beach Escape</button>
+                    <button class="chip" data-query="Suggest a weekend getaway with boutique hotels">Weekend Getaway</button>
+                </div>
+
+                <form id="travelForm" class="search-shell">
+                    <button class="icon-btn" type="button" aria-label="Attach file">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4a4 4 0 0 1 4 4v8a5 5 0 0 1-10 0V7a3 3 0 1 1 6 0v8a1 1 0 1 1-2 0V8H8v7a3 3 0 1 0 6 0V8a4 4 0 0 0-8 0v8a6 6 0 1 0 12 0V8a5 5 0 0 0-5-4Z"/></svg>
+                    </button>
+                    <input id="question" name="question" type="text" placeholder="Ask for beach escapes, safaris, family stays, or weekend getaways..." autocomplete="off">
+                    <button class="icon-btn" type="button" aria-label="Voice search">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3Zm5-3a1 1 0 1 1 2 0 7 7 0 0 1-6 6.93V21h2a1 1 0 1 1 0 2H9a1 1 0 1 1 0-2h2v-2.07A7 7 0 0 1 5 12a1 1 0 1 1 2 0 5 5 0 0 0 10 0Z"/></svg>
+                    </button>
+                    <button type="submit" class="primary-btn">
+                        <span class="btn-label">Plan my trip</span>
+                        <span class="btn-spinner" aria-hidden="true"></span>
+                    </button>
+                </form>
+
+                <div id="status" class="status-pill">Ready to craft your East African escape.</div>
+            </div>
+
+            <div class="hero-visual" aria-hidden="true">
+                <div class="image-stack">
+                    <img class="hero-photo hero-photo-main" src="https://images.unsplash.com/photo-1521295121783-8a321d551ad2?auto=format&fit=crop&w=900&q=80" alt="Luxury safari lodge in Africa">
+                    <img class="hero-photo hero-photo-side" src="https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?auto=format&fit=crop&w=700&q=80" alt="Beachfront resort in East Africa">
+                    <img class="hero-photo hero-photo-bottom" src="https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?auto=format&fit=crop&w=700&q=80" alt="Scenic travel destination in Africa">
+                </div>
+            </div>
+        </section>
+
+        <main class="results-layout">
+            <section class="panel panel-answers">
+                <div class="panel-header">
+                    <div>
+                        <p class="section-kicker">AI assistant</p>
+                        <h2>Your itinerary insight</h2>
+                    </div>
+                </div>
+                <div id="answer" class="answer-card">
+                    <p class="empty-state">Share your travel mood and receive thoughtful AI recommendations.</p>
+                </div>
+            </section>
+
+            <section class="panel" id="hotels">
+                <div class="panel-header">
+                    <div>
+                        <p class="section-kicker">Recommended hotels</p>
+                        <h2>Stay in the heart of East Africa</h2>
+                    </div>
+                </div>
+                <div id="hotelList" class="hotel-grid"></div>
+            </section>
+
+            <section class="panel sources-panel" id="insights">
+                <div class="panel-header">
+                    <div>
+                        <p class="section-kicker">Sources</p>
+                        <h2>Curated references</h2>
+                    </div>
+                </div>
+                <ul id="sourcesList" class="sources-list"></ul>
+            </section>
+        </main>
+
+        <footer class="footer">
+            <div>
+                <h3>Travel Africa</h3>
+                <p>Built with FastAPI + ChromaDB + AI</p>
+            </div>
+            <p>© 2026 Travel Africa. All rights reserved.</p>
+        </footer>
+    </div>
+
+    <script src="/static/js/script.js"></script>
+</body>
+</html>
