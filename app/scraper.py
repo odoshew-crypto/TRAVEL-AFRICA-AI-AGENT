@@ -1,14 +1,20 @@
+import os
 import time
 from pathlib import Path
 
 import pandas as pd
 import requests
 
-OVERPASS_URL = "https://overpass.kumi.systems/api/interpreter"
+
+OVERPASS_URLS = [
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
+    "https://overpass.nchc.org.tw/api/interpreter",
+]
 
 HEADERS = {
     "User-Agent": "TravelAfricaRAGProject/1.0",
-    "Accept": "application/json"
+    "Accept": "application/json",
 }
 
 LOCATIONS = [
@@ -37,107 +43,15 @@ LOCATIONS = [
 ]
 
 RADIUS_METERS = 15000
+
 BASE_DIR = Path(__file__).resolve().parent
-DATA_DIR = BASE_DIR / "data"
+
+# On Railway, set DATA_DIR=/data when using a volume.
+DATA_DIR = Path(
+    os.getenv(
+        "DATA_DIR",
+        str(BASE_DIR / "data"),
+    )
+)
+
 OUTPUT_CSV = DATA_DIR / "hotels_raw.csv"
-
-
-def _normalize_hotel(item, location_name, country):
-    tags = item.get("tags", {})
-    hotel_name = (tags.get("name") or "").strip()
-
-    if not hotel_name:
-        return None
-
-    latitude = item.get("lat") or item.get("center", {}).get("lat")
-    longitude = item.get("lon") or item.get("center", {}).get("lon")
-
-    return {
-        "hotel_name": hotel_name,
-        "location": location_name,
-        "country": country,
-        "description": tags.get(
-            "description",
-            f"{hotel_name} is an accommodation option in {location_name}, {country}."
-        ),
-        "amenities": ", ".join([
-            key for key in tags.keys()
-            if key in [
-                "internet_access",
-                "parking",
-                "restaurant",
-                "bar",
-                "swimming_pool",
-                "air_conditioning",
-                "wheelchair"
-            ]
-        ]) or "Not listed",
-        "rating": tags.get("stars", "Not listed"),
-        "contact": tags.get("phone", tags.get("contact:phone", "")),
-        "website_url": tags.get("website", tags.get("contact:website", "")),
-        "source_url": f"https://www.openstreetmap.org/{item['type']}/{item['id']}",
-        "latitude": latitude,
-        "longitude": longitude,
-    }
-
-
-def scrape_hotels():
-    hotels = []
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-
-    for location in LOCATIONS:
-        name = location["name"]
-        country = location["country"]
-        lat = location["lat"]
-        lon = location["lon"]
-
-        query = f"""
-        [out:json][timeout:60];
-        (
-          node["tourism"~"hotel|guest_house|hostel|motel"](around:{RADIUS_METERS},{lat},{lon});
-          way["tourism"~"hotel|guest_house|hostel|motel"](around:{RADIUS_METERS},{lat},{lon});
-        );
-        out center tags;
-        """
-
-        try:
-            response = requests.post(
-                OVERPASS_URL,
-                data={"data": query},
-                headers=HEADERS,
-                timeout=90,
-            )
-
-            print("=" * 50)
-            print("Location:", name)
-            print("Country:", country)
-            print("Status:", response.status_code)
-            print("Preview:", response.text[:200])
-
-            if response.status_code != 200:
-                continue
-
-            data = response.json()
-            print("Elements found:", len(data.get("elements", [])))
-
-        except Exception as exc:
-            print(f"Failed for {name}: {exc}")
-            continue
-
-        for item in data.get("elements", []):
-            hotel = _normalize_hotel(item, name, country)
-            if hotel:
-                hotels.append(hotel)
-
-        time.sleep(3)
-
-    df = pd.DataFrame(hotels)
-
-    if not df.empty:
-        df = df.drop_duplicates(subset=["hotel_name", "location", "country"])
-
-    df.to_csv(OUTPUT_CSV, index=False)
-
-    print("TOTAL HOTELS:", len(df))
-
-    return df
