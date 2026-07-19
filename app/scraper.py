@@ -6,18 +6,19 @@ import pandas as pd
 import requests
 
 
-# Multiple Overpass servers are used so the scraper can switch
-# when one server is unavailable or times out.
+# Use multiple working Overpass servers.
+# If one server fails or times out, the scraper tries the next one.
 OVERPASS_URLS = [
     "https://overpass-api.de/api/interpreter",
     "https://overpass.kumi.systems/api/interpreter",
-    "https://overpass.nchc.org.tw/api/interpreter",
 ]
+
 
 HEADERS = {
     "User-Agent": "TravelAfricaRAGProject/1.0",
     "Accept": "application/json",
 }
+
 
 LOCATIONS = [
     # Kenya
@@ -134,8 +135,8 @@ RADIUS_METERS = 15000
 
 BASE_DIR = Path(__file__).resolve().parent
 
-# Locally, data is stored in app/data.
-# On Railway, set DATA_DIR=/data when using a persistent volume.
+# Locally, data is saved in app/data.
+# On Railway, set DATA_DIR=/data if using a persistent volume.
 DATA_DIR = Path(
     os.getenv(
         "DATA_DIR",
@@ -146,9 +147,12 @@ DATA_DIR = Path(
 OUTPUT_CSV = DATA_DIR / "hotels_raw.csv"
 
 
-def _build_query(latitude: float, longitude: float) -> str:
+def _build_query(
+    latitude: float,
+    longitude: float,
+) -> str:
     """
-    Build the Overpass query for one location.
+    Build an Overpass API query for one location.
     """
 
     return f"""
@@ -259,29 +263,36 @@ def _normalize_hotel(
 def _query_overpass(
     query: str,
     location_name: str,
-    retries: int = 1,
+    retries: int = 2,
 ) -> dict:
     """
-    Send the query to available Overpass servers.
+    Query available Overpass servers.
 
-    If one server fails, the function automatically tries the next one.
+    If one server fails, times out, or rate-limits the request,
+    another server is tried automatically.
     """
 
     last_error = None
 
     for attempt in range(1, retries + 1):
+
+        print(
+            f"\nAttempt {attempt} of {retries} "
+            f"for {location_name}"
+        )
+
         for overpass_url in OVERPASS_URLS:
             try:
                 print(
                     f"Trying {location_name} using "
-                    f"{overpass_url}, attempt {attempt}"
+                    f"{overpass_url}"
                 )
 
                 response = requests.post(
                     overpass_url,
                     data={"data": query},
                     headers=HEADERS,
-                    timeout=(10, 60),
+                    timeout=(15, 90),
                 )
 
                 print(
@@ -289,8 +300,24 @@ def _query_overpass(
                     f"{response.status_code}"
                 )
 
+                # Too many requests
+                if response.status_code == 429:
+                    last_error = RuntimeError(
+                        f"Rate limited by {overpass_url}"
+                    )
+
+                    wait_seconds = 30
+
+                    print(
+                        f"Rate limited for {location_name}. "
+                        f"Waiting {wait_seconds} seconds."
+                    )
+
+                    time.sleep(wait_seconds)
+                    continue
+
+                # Temporary server problems
                 if response.status_code in {
-                    429,
                     502,
                     503,
                     504,
@@ -301,10 +328,11 @@ def _query_overpass(
                     )
 
                     print(
-                        f"Temporary error from "
+                        f"Temporary server error from "
                         f"{overpass_url}"
                     )
 
+                    time.sleep(5)
                     continue
 
                 response.raise_for_status()
@@ -351,11 +379,11 @@ def _query_overpass(
                 )
 
         if attempt < retries:
-            wait_seconds = attempt * 5
+            wait_seconds = attempt * 10
 
             print(
-                f"Waiting {wait_seconds} seconds "
-                f"before retrying {location_name}"
+                f"All servers failed for {location_name}. "
+                f"Waiting {wait_seconds} seconds before retrying."
             )
 
             time.sleep(wait_seconds)
@@ -366,12 +394,14 @@ def _query_overpass(
     )
 
 
-def _save_progress(hotels: list[dict]) -> pd.DataFrame:
+def _save_progress(
+    hotels: list[dict],
+) -> pd.DataFrame:
     """
-    Save the current results to CSV.
+    Save the current hotel records to CSV.
 
-    This protects the collected data if the application stops
-    before all locations are completed.
+    This protects collected results if the application stops
+    before all locations are processed.
     """
 
     DATA_DIR.mkdir(
@@ -410,9 +440,9 @@ def _save_progress(hotels: list[dict]) -> pd.DataFrame:
 
 def scrape_hotels() -> dict:
     """
-    Scrape hotel and accommodation records for all locations.
+    Scrape accommodation records for all configured locations.
 
-    Returns a dictionary that FastAPI can safely convert to JSON.
+    Returns a JSON-serializable dictionary for FastAPI.
     """
 
     hotels = []
@@ -441,7 +471,7 @@ def scrape_hotels() -> dict:
             data = _query_overpass(
                 query=query,
                 location_name=name,
-                retries=1,
+                retries=2,
             )
 
         except Exception as exc:
@@ -480,20 +510,19 @@ def scrape_hotels() -> dict:
             f"{location_count}"
         )
 
+        # Save after every successful location
         _save_progress(hotels)
 
-        # Delay requests so the public API is not overloaded.
-        time.sleep(3)
+        # Slow down requests to reduce rate limiting
+        print("Waiting 10 seconds before the next location.")
+        time.sleep(10)
 
     final_df = _save_progress(hotels)
 
     print("\n" + "=" * 60)
     print("Hotel scraping completed")
     print("Total hotels:", len(final_df))
-    print(
-        "Failed locations:",
-        len(failed_locations),
-    )
+    print("Failed locations:", len(failed_locations))
     print("Output file:", OUTPUT_CSV)
 
     return {
